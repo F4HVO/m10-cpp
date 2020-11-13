@@ -30,7 +30,7 @@ int positionCounter = 0 ;
 // We will sleep several "cycles"
 unsigned char sleepCycles = 1 ;
 
-// Binary packet to send over the air (packet prepared by APRS class)
+// Binary packet to send over the air
 unsigned char rawPacket[250] ;
 uint32_t rawPacketSize = 0 ;
 
