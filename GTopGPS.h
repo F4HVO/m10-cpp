@@ -11,7 +11,11 @@
 #define GTOPGPS_H_
 
 //M10 GTOP
-#define stdFLEN        0x3F  // 63 bytes
+#ifdef M10_V07
+    #define stdFLEN        0x3E  // 62 bytes
+#else
+    #define stdFLEN        0x3F  // 63 bytes
+#endif
 #define pos_GPSlat     0x05  // 4 byte
 #define pos_GPSlon     0x09  // 4 byte
 #define pos_GPSalt     0x0D  // 3 byte
@@ -80,6 +84,11 @@ private :
 
     unsigned int index_ ;
     uint8_t packet_[stdFLEN] ;
+
+    uint8_t header_[3] ;
+    unsigned int headerIndex_ ;
+
+    bool headerFound_ ;
 };
 
 #endif /* GTOPGPS_H_ */

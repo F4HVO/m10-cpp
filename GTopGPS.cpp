@@ -34,23 +34,45 @@ short get_2bytes(uint8_t * packet,unsigned int pos) {
 
 GTopGPS::GTopGPS( )
 : index_(0)
+, headerIndex_(0)
+, headerFound_(false)
 {
 }
 
 
 bool GTopGPS::encode( uint8_t character ) {
-    // Skip first character which seems random
-    if ( index_ == 0 )
+    if ( ! headerFound_ )
     {
-        ++index_ ;
+        header_[headerIndex_%3] = character ;
+        ++headerIndex_ ;
+        if ( ( header_[0] == header_[1]) && ( header_[1] == header_[2]) &&  ( header_[2] == 170 ) )
+        {
+            packet_[0] = 170 ;
+            packet_[1] = 170 ;
+            packet_[2] = 170 ;
+            index_ = 3 ;
+            headerFound_ = true ;
+        }
         return false ;
     }
-    packet_[index_-1] = character ;
+
+
+    packet_[index_] = character ;
     ++index_;
-    if ( index_ == stdFLEN+1 )
+    if ( index_ == stdFLEN )
     {
         index_ = 0 ;
+        headerFound_ = false ;
+        headerIndex_ = 0 ;
+        header_[0] = header_[1] = header_[2] = 0x0 ;
+
+#ifdef M10_V07
+        // TODO compute CRC on V07 M10
+        return true ;
+#else
         return checkM10( packet_, stdFLEN ) ;
+#endif
+
     }
     return false ;
 }

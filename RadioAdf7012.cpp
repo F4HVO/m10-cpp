@@ -263,13 +263,13 @@ void RadioAdf7012::setup()
 
     adf_reset_config();
 
-    // Center frequency at 438.510MHz
+    // Center frequency at 432.500MHz
     // Formula : f_pfd = f_crystal / r_divider
     // f_tx = f_pfd * ( integer_n + fractional_n / 4096 )
     adf_config.r0.output_divider = ADF_OUTPUT_DIVIDER_BY_2 ;
     adf_config.r0.r_divider = 4 ;
-    adf_config.r1.integer_n = 217 ;
-    adf_config.r1.fractional_n = 1331 ;
+    adf_config.r1.integer_n = 216 ;
+    adf_config.r1.fractional_n = 1024 ;
 
     adf_config.r3.pll_enable = 1;
     // Between 0 and 3

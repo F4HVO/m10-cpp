@@ -16,8 +16,6 @@
 // Gps frame decoder
 GTopGPS gps ;
 
-volatile bool newGpsPosition = false ;
-
 // Primitive machine state
 // Nominal mode : start in SENDING_POS state
 // Test mode : start in TEST_MODE
@@ -82,15 +80,6 @@ int main()
                 // Configure ADF 7012
                 radio.setup() ;
 
-                // If new GPS available, TX updated position
-                if ( ! newGpsPosition )
-                {
-                    break ;
-                }
-
-                // A packet has been decoded, flash led
-                newGpsPosition = false ;
-
                 // Update packet with GPS data, continue if position is valid
                 bool isValid = false ;
                 Position position = gps.getPosition( &isValid ) ;
@@ -120,7 +109,6 @@ int main()
 
                 // Turn transmitter off
                 M10::synthPower( false ) ;
-
 
 
                 // Go to sleep, we will wake up when we receive a full GPS message
@@ -181,8 +169,6 @@ __interrupt void USCI0RX_ISR(void)
   // If we received a full GPS message
   if ( gps.encode( c ) )
   {
-      newGpsPosition = true ;
-
       // Reset parsing state (value stays unchanged)
       gps.clear() ;
 
