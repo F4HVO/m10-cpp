@@ -116,11 +116,8 @@ M10Packet::preparePacket( const Position * position,
     outputData[0] = 0x64 ;
     outputData[1] = 0xAF ;
     outputData[2] = 0x02 ;
-
-#ifdef M10_V07
-    // Packet version for M10 V07
     outputData[3] = 0x01 ;
-#endif
+
 
     outputData[85] = 0x42 ;
     writeMsb( position->Lat , &outputData[0x4] ) ;

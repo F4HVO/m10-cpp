@@ -10,12 +10,8 @@
 #ifndef GTOPGPS_H_
 #define GTOPGPS_H_
 
-//M10 GTOP
-#ifdef M10_V07
-    #define stdFLEN        0x3E  // 62 bytes
-#else
-    #define stdFLEN        0x3F  // 63 bytes
-#endif
+
+#define stdFLEN        0x3E  // 63 bytes
 #define pos_GPSlat     0x05  // 4 byte
 #define pos_GPSlon     0x09  // 4 byte
 #define pos_GPSalt     0x0D  // 3 byte

@@ -66,13 +66,8 @@ bool GTopGPS::encode( uint8_t character ) {
         headerIndex_ = 0 ;
         header_[0] = header_[1] = header_[2] = 0x0 ;
 
-#ifdef M10_V07
-        // TODO compute CRC on V07 M10
+        // TODO compute CRC
         return true ;
-#else
-        return checkM10( packet_, stdFLEN ) ;
-#endif
-
     }
     return false ;
 }
