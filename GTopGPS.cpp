@@ -104,11 +104,37 @@ GTopGPS::getSpeed() {
     return s ;
 }
 
+
+void gps2Date(long GpsWeek, long GpsSeconds, int *Year, int *Month, int *Day) {
+
+    long GpsDays, Mjd;
+    long J, C, Y, M;
+
+    GpsDays = GpsWeek * 7 + (GpsSeconds / 86400);
+    Mjd = 44244 + GpsDays;
+
+    J = Mjd + 2468570;
+    C = 4 * J / 146097;
+    J = J - (146097 * C + 3) / 4;
+    Y = 4000 * (J + 1) / 1461001;
+    J = J - 1461 * Y / 4 + 31;
+    M = 80 * J / 2447;
+    *Day = J - 2447 * M / 80;
+    J = M / 11;
+    *Month = M + 2 - (12 * J);
+    *Year = 100 * (C - 49) + Y + J;
+}
+
+
 Datation
 GTopGPS::getTime() {
     Datation d ;
-    d.Time = get_3bytes(packet_, pos_GPStime) ;
-    d.Date = get_3bytes(packet_, pos_GPSdate) ;
+    uint32_t t = get_3bytes(packet_, pos_GPStime) % 86400 ;
+    d.Time = ( t / 3600 ) * 100 * 100 + ( ( t % 3600 ) / 60 ) * 100  + t % 60 ;
+    int y, m, day ;
+    int week = ( get_3bytes(packet_, pos_GPSdate) >> 8 ) + 0x800 ;
+    gps2Date( week, get_3bytes(packet_, pos_GPStime), &y, &m, &day ) ;
+    d.Date = day * 100 * 100 + m * 100 + ( y % 100 ) ;
     return d ;
 }
 
