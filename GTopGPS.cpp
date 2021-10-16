@@ -129,12 +129,15 @@ void gps2Date(long GpsWeek, long GpsSeconds, int *Year, int *Month, int *Day) {
 Datation
 GTopGPS::getTime() {
     Datation d ;
-    uint32_t t = get_3bytes(packet_, pos_GPStime) % 86400 ;
+    /*uint32_t t = get_3bytes(packet_, pos_GPStime) % 86400 ;
     d.Time = ( t / 3600 ) * 100 * 100 + ( ( t % 3600 ) / 60 ) * 100  + t % 60 ;
     int y, m, day ;
     int week = ( get_3bytes(packet_, pos_GPSdate) >> 8 ) + 0x800 ;
     gps2Date( week, get_3bytes(packet_, pos_GPStime), &y, &m, &day ) ;
-    d.Date = day * 100 * 100 + m * 100 + ( y % 100 ) ;
+    d.Date = day * 100 * 100 + m * 100 + ( y % 100 ) ;*/
+
+    d.Time = get_3bytes(packet_, pos_GPStime) ;
+    d.Date = get_3bytes(packet_, pos_GPSdate) ;
     return d ;
 }
 

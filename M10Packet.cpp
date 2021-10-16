@@ -102,6 +102,7 @@ M10Packet::preparePacket( const Position * position,
     {
         outputData[i] = 0x99 ;
     }
+
     outputData += 16;
 
     // Add header 0x99 99 4C 99
@@ -110,13 +111,17 @@ M10Packet::preparePacket( const Position * position,
     outputData[2] = 0x4C ;
     outputData[3] = 0x99 ;
 
+
     // Offsets are given after header
     outputData += 4;
 
     outputData[0] = 0x64 ;
+    // Detected with 9F
     outputData[1] = 0xAF ;
     outputData[2] = 0x02 ;
 
+    // Number of satellites
+    outputData[0x1E] = 0x5 ;
 
     outputData[85] = 0x42 ;
     writeMsb( position->Lat , &outputData[0x4] ) ;
@@ -137,8 +142,9 @@ M10Packet::preparePacket( const Position * position,
     outputData[0x63] = (crc >> 8) ;
     outputData[0x64] = (crc & 0x00FF) ;
 
-    uint8_t lastBit = 0 ;
-    uint8_t shift = 1 ;
+    uint8_t lastBit = 1 ;
+    static const uint8_t shift = 1 ;
+    uint8_t newBit = lastBit ;
 
     // Differential encoding
     for ( int i = 0 ; i < *packetSize - 8 ; ++i )
@@ -146,7 +152,6 @@ M10Packet::preparePacket( const Position * position,
         for ( int j = 7 ; j >= 0 ; -- j )
         {
             uint8_t currentBit = ( outputData[i] >> j ) & 0x1 ;
-            uint8_t newBit = lastBit ;
             // On 0 change bit, on 1 keep last bit
             if ( currentBit == 0 )
             {
