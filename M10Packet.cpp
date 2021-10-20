@@ -116,22 +116,44 @@ M10Packet::preparePacket( const Position * position,
     outputData += 4;
 
     outputData[0] = 0x64 ;
-    // Detected with 9F
-    outputData[1] = 0xAF ;
     outputData[2] = 0x02 ;
 
-    // Number of satellites
-    outputData[0x1E] = 0x5 ;
 
-    outputData[85] = 0x42 ;
-    writeMsb( position->Lat , &outputData[0x4] ) ;
-    writeMsb( position->Lon , &outputData[0x8] ) ;
+#ifdef M10PLUS
+    outputData[1] = 0xAF ;
+    writeMsb( position->Lat, &outputData[0x4] ) ;
+    writeMsb( position->Lon, &outputData[0x8] ) ;
     writeMsb3( position->Alt, &outputData[0xC] ) ;
+
     writeMsb2( speed->vE, &outputData[0xF] ) ;
     writeMsb2( speed->vN, &outputData[0x11] ) ;
     writeMsb2( speed->vU, &outputData[0x13] ) ;
+
     writeMsb3( date->Time, &outputData[0x15] ) ;
     writeMsb3( date->Date, &outputData[0x18] ) ;
+#else
+    outputData[1] = 0x9F ;
+    uint64_t lat = position->Lat ;
+    lat *= 0xB60b69 ;
+    lat /= 1000000 ;
+    uint64_t lon = position->Lon ;
+    lon *= 0xB60b69 ;
+    lon /= 1000000 ;
+
+    // Number of satellites
+    outputData[0x1E] = 0x05 ;
+    writeMsb( lat, &outputData[0xE] ) ;
+    writeMsb( lon, &outputData[0x12] ) ;
+    writeMsb( position->Alt * 10, &outputData[0x16] ) ;
+
+
+    writeMsb2( speed->vE, &outputData[0x4] ) ;
+    writeMsb2( speed->vN, &outputData[0x6] ) ;
+    writeMsb2( speed->vU, &outputData[0x8] ) ;
+    writeMsb( date->Time*1000, &outputData[0x0A] ) ;
+    writeMsb3( 0x040000 | date->Date, &outputData[0x20] ) ;
+#endif
+
     for ( uint16_t i = 0 ; i < snSize ; ++i )
     {
         outputData[0x5D+i] = sn[i] ;
