@@ -116,11 +116,11 @@ M10Packet::preparePacket( const Position * position,
     outputData += 4;
 
     outputData[0] = 0x64 ;
-    outputData[2] = 0x02 ;
 
 
 #ifdef M10PLUS
     outputData[1] = 0xAF ;
+    outputData[2] = 0x02 ;
     writeMsb( position->Lat, &outputData[0x4] ) ;
     writeMsb( position->Lon, &outputData[0x8] ) ;
     writeMsb3( position->Alt, &outputData[0xC] ) ;
@@ -133,11 +133,12 @@ M10Packet::preparePacket( const Position * position,
     writeMsb3( date->Date, &outputData[0x18] ) ;
 #else
     outputData[1] = 0x9F ;
+    outputData[2] = 0x20 ;
     uint64_t lat = position->Lat ;
-    lat *= 0xB60b69 ;
+    lat *= 0xB60b60 ;
     lat /= 1000000 ;
     uint64_t lon = position->Lon ;
-    lon *= 0xB60b69 ;
+    lon *= 0xB60b60 ;
     lon /= 1000000 ;
 
     // Number of satellites
