@@ -152,7 +152,7 @@ M10Packet::preparePacket( const Position * position,
     writeMsb2( speed->vN, &outputData[0x6] ) ;
     writeMsb2( speed->vU, &outputData[0x8] ) ;
     writeMsb( date->Time*1000, &outputData[0x0A] ) ;
-    writeMsb3( 0x040000 | date->Date, &outputData[0x20] ) ;
+    writeMsb2( ( date->Date >> 8 ) + 2048, &outputData[0x20] ) ;
 #endif
 
     for ( uint16_t i = 0 ; i < snSize ; ++i )
