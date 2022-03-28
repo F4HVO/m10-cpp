@@ -85,6 +85,7 @@ void
 M10Packet::preparePacket( const Position * position,
                           const Speed * speed,
                           const Datation * date,
+                          int numSV,
                           const char * sn,
                           int snSize,
                           uint8_t outputData[],
@@ -92,6 +93,7 @@ M10Packet::preparePacket( const Position * position,
 {
     *packetSize = 20 + 101 ;
 
+    //for ( int i = *packetSize ; i >=0 ; --i )
     for ( int i = 150 ; i >=0 ; --i )
     {
         outputData[i] = 0 ;
@@ -106,17 +108,20 @@ M10Packet::preparePacket( const Position * position,
     outputData += 16;
 
     // Add header 0x99 99 4C 99
+
+    //1001 1001 1001 1001 0100 1100 1001 1001"
+    //1001 1001 1001 1001 0100 1100 1001
+    // 9    9    9    9    4    C    9
+
     outputData[0] = 0x99 ;
     outputData[1] = 0x99 ;
     outputData[2] = 0x4C ;
     outputData[3] = 0x99 ;
 
-
     // Offsets are given after header
     outputData += 4;
 
     outputData[0] = 0x64 ;
-
 
 #ifdef M10PLUS
     outputData[1] = 0xAF ;
@@ -132,10 +137,11 @@ M10Packet::preparePacket( const Position * position,
 
     writeMsb3( date->Time, &outputData[0x15] ) ;
     writeMsb3( date->Date, &outputData[0x18] ) ;
-#else
+#endif
+
+#ifdef M10WEIRD
     outputData[1] = 0x9F ;
     outputData[2] = 0x20 ;
-
     uint64_t lat = position->Lat ;
     lat *= 0xB60b60 ;
     lat /= 1000000 ;
@@ -144,7 +150,7 @@ M10Packet::preparePacket( const Position * position,
     lon /= 1000000 ;
 
     // Number of satellites
-    outputData[0x1E] = 0x05 ;
+    outputData[0x1E] = numSV & 0xFF;
     writeMsb( lat, &outputData[0xE] ) ;
     writeMsb( lon, &outputData[0x12] ) ;
     writeMsb( position->Alt * 10, &outputData[0x16] ) ;
@@ -155,6 +161,29 @@ M10Packet::preparePacket( const Position * position,
     writeMsb2( speed->vU, &outputData[0x8] ) ;
     writeMsb( date->Time*1000, &outputData[0x0A] ) ;
     writeMsb2( ( date->Date >> 8 ) + 2048, &outputData[0x20] ) ;
+#endif
+
+#ifdef M10TRIMBLE
+    outputData[1] = 0x9F ;
+    outputData[2] = 0x20 ;
+
+    uint32_t lat = position->Lat ;
+    uint32_t lon = position->Lon ;
+
+    // Number of satellites
+    outputData[0x1E] = numSV & 0xFF;
+    writeMsb( lat, &outputData[0xE] ) ;
+    writeMsb( lon, &outputData[0x12] ) ;
+    writeMsb( position->Alt * 1000, &outputData[0x16] ) ;
+
+    writeMsb2( speed->vE, &outputData[0x4] ) ;
+    writeMsb2( speed->vN, &outputData[0x6] ) ;
+    writeMsb2( speed->vU, &outputData[0x8] ) ;
+
+    writeMsb( date->Time*1000, &outputData[0x0A] ) ;
+    writeMsb2( date->Date, &outputData[0x20] ) ;
+
+    outputData[0x1F] = date->UtcOffset & 0xFF;
 #endif
 
     for ( uint16_t i = 0 ; i < snSize ; ++i )

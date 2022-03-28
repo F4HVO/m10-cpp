@@ -8,37 +8,79 @@
 #include <msp430.h>
 #include "M10Configuration.h"
 #include "RadioAdf7012.h"
-#include "GTopGPS.h"
 #include "M10Packet.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
-
-// Gps frame decoder
-GTopGPS gps ;
-
-// Primitive machine state
-// Nominal mode : start in SENDING_POS state
-// Test mode : start in TEST_MODE
-enum { SENDING_POS,
-       TEST_MODE } beaconState = SENDING_POS ;
-
-// We will send several positions every time the beacon enters SENDING_POS state
-int positionCounter = 0 ;
-
-// We will sleep several "cycles"
-unsigned char sleepCycles = 1 ;
+#include "buffer.h"
+#include "tsip.h"
+#include "GTopGPS.h"
+#include "M10Data.h"
 
 // Binary packet to send over the air
-unsigned char rawPacket[250] ;
-uint32_t rawPacketSize = 0 ;
+unsigned char rawPacket[250];
+uint32_t rawPacketSize = sizeof(rawPacket);
 
 // Handle radio configuration and operation
-RadioAdf7012 radio ;
+RadioAdf7012 radio;
+
+#define RBUF_SIZE 128
+
+static volatile int         uartRxOverflow;
+static unsigned char        uartRxData[RBUF_SIZE];
+static cBuffer              uartRxBuffer;
+
+#ifdef M10TRIMBLE
+static unsigned char        PacketGpsSetIO[4]    = { 0x22 , 0x02 , 0x00 , 0x08 }; // Super packet output + single precision
+static unsigned char        SuperPacketConfig[2] = { 0x20 , 0x01 };    // Automatic report
+
+static Position position;
+static Speed    speed;
+static Datation date;
+#else
+// Gps frame decoder
+GTopGPS gps ;
+#endif
+
+//----------------------------------------------------
+
+cBuffer *com_GetRxBuffer(void)
+{
+    return &uartRxBuffer;
+}
+
+int com_RxOverflow(void)
+{
+    return (uartRxOverflow);
+}
+
+void com_ResetRxOverflow(void)
+{
+    uartRxOverflow = 0;
+}
+
+//----------------------------------------------------
 
 int main()
 {
+
+    memset(uartRxData,0,sizeof(uartRxData));
+    bufferInit(&uartRxBuffer, uartRxData, RBUF_SIZE);
+
+#ifdef M10TRIMBLE
+    int ConfigGPS = 0;
+    int GpsHeure = 0;
+    int result = 0;
+    int sendPacket = 0;
+    GpsInfoType *ptrGPpsInfos = TSIP_Init();
+#else
+    gps.setBuffer( com_GetRxBuffer() ) ;
+#endif
+
     // Setup board
-    M10::setup() ;
+    M10::setup();
 
     // Keep board powered when user releases power button
     M10::mainPower( true ) ;
@@ -57,46 +99,84 @@ int main()
     M10::setupPowerOff() ;
 
     // Turn on GPS
-    if ( beaconState != TEST_MODE )
-    {
-        M10::gpsPower( true ) ;
-    }
+    M10::gpsPower( true ) ;
 
     __bis_SR_register( GIE ) ;
 
     TACCR0 = 0;
 
     // Main loop
+
     while ( true )
     {
-        switch ( beaconState )
-        {
-            // In this state, we wait for good GPS data, GPS UART keeps waking us up
-            case SENDING_POS:
-            {
+
+#ifdef M10TRIMBLE
+        result = TSIP_Process();
+
+        if ( result == 2 ) {
+            // => configuration du GPS en simple precision + request last fix
+            TSIP_SendPacket(TSIPTYPE_SET_IO_OPTIONS, PacketGpsSetIO, sizeof(PacketGpsSetIO));
+
+            TSIP_SendPacket(TSIPTYPE_REQUEST_LAST_FIX, SuperPacketConfig , sizeof(SuperPacketConfig));
+        }
+
+        if ( result == 3 ) {
+            // Signal horaire
+            if (GpsHeure == 1) {
+
+                if ( ConfigGPS == 0) {
+
+                    // => configuration du GPS en simple precision + request last fix
+                    TSIP_SendPacket(TSIPTYPE_SET_IO_OPTIONS, PacketGpsSetIO, sizeof(PacketGpsSetIO));
+
+                    TSIP_SendPacket(TSIPTYPE_REQUEST_LAST_FIX, SuperPacketConfig , sizeof(SuperPacketConfig));
+
+                    ConfigGPS = 1;
+                }
+
+                M10::digitalWrite( M10::LED, M10::LOW ) ;
+                GpsHeure = 0;
+            }
+            else {
+
+                M10::digitalWrite( M10::LED, M10::HIGH ) ;
+                GpsHeure = 1;
+            }
+        }
+
+        if ( result == 4 ) {
+            sendPacket++;
+            sendPacket = sendPacket % 2;
+
+            // GPS en mode 3D
+            M10::digitalWrite( M10::LED, M10::LOW );
+
+            position.Lat = ptrGPpsInfos->PosLLA.lat.i;
+            position.Lon = ptrGPpsInfos->PosLLA.lon.i;
+            position.Alt = ptrGPpsInfos->PosLLA.altLong;
+
+            date.Date =  ptrGPpsInfos->WeekNum;
+            date.Time =  (uint32_t)ptrGPpsInfos->TimeOfWeek.f;
+            date.UtcOffset = ptrGPpsInfos->UtcOffset.i;
+
+            int numSVs = ptrGPpsInfos->GPSModeInfos.nSVs;
+
+            speed.vE = ptrGPpsInfos->vE;
+            speed.vN = ptrGPpsInfos->vN;
+            speed.vU = ptrGPpsInfos->vU;
+
+            if (sendPacket == 0 ) {
                 // Turn transmitter on
                 M10::synthPower( true ) ;
 
                 // Configure ADF 7012
                 radio.setup() ;
 
-                // Update packet with GPS data, continue if position is valid
-                bool isValid = false ;
-                Position position = gps.getPosition( &isValid ) ;
-                if ( ! isValid )
-                {
-                    // Break here if you do not want to send a message with invalid coordinates
-                    //break ;
-                }
-
-                Speed speed = gps.getSpeed() ;
-                Datation date = gps.getTime() ;
-
                 // Turn on led when TXing
                 M10::digitalWrite( M10::LED, M10::HIGH ) ;
 
                 // Prepare packet
-                M10Packet::preparePacket( &position, &speed, &date, "F4AAA", 5, rawPacket, &rawPacketSize ) ;
+                M10Packet::preparePacket( &position, &speed, &date, numSVs, "F4AAA", 5, rawPacket, &rawPacketSize ) ;
 
                 // Disable GPS RX interrupt
                 IE2 &= ~UCA0RXIE;
@@ -110,49 +190,54 @@ int main()
                 // Turn transmitter off
                 M10::synthPower( false ) ;
 
+                bufferFlush( com_GetRxBuffer() );
 
                 // Go to sleep, we will wake up when we receive a full GPS message
-                break ;
-            }
-
-            // Send continuously
-            case TEST_MODE:
-            {
-                // Turn transmitter on
-                M10::synthPower( true ) ;
-
-                // Configure ADF 7012
-                radio.setup() ;
-
-                // Turn on led when TXing
-                M10::digitalWrite( M10::LED, M10::HIGH ) ;
-
-                Position position ;
-                position.Lat = 42000000 ;
-                position.Lon = 1000000 ;
-                position.Alt = 12000 ;
-
-                Speed speed ;
-                speed.vE = 10 ;
-                speed.vN = 0 ;
-                speed.vU = 12 ;
-
-                Datation date ;
-                date.Date = 10000 ;
-                date.Time = 100226 ;
-
-                // Prepare raw packet
-                M10Packet::preparePacket( &position, &speed, &date, "Test", 4, rawPacket, &rawPacketSize ) ;
-
-                // Send packet over the air
-                radio.send_data( rawPacket, rawPacketSize, 20 ) ;
-
-                M10::digitalWrite( M10::LED, M10::LOW ) ;
-
-                // Timer to wake up in the future
-                TACCR0 = 2000 ;
             }
         }
+#else
+        if ( gps.decode() )
+        {
+            // Turn transmitter on
+            M10::synthPower( true ) ;
+
+            // Configure ADF 7012
+            radio.setup() ;
+
+            // Update packet with GPS data, continue if position is valid
+            bool isValid = false ;
+            Position position = gps.getPosition( &isValid ) ;
+            if ( ! isValid )
+            {
+                // Break here if you do not want to send a message with invalid coordinates
+                //break ;
+            }
+
+            Speed speed = gps.getSpeed() ;
+            Datation date = gps.getTime() ;
+
+            // Turn on led when TXing
+            M10::digitalWrite( M10::LED, M10::HIGH ) ;
+
+            // Prepare packet
+            M10Packet::preparePacket( &position, &speed, &date, 6, "F4AAA", 5, rawPacket, &rawPacketSize ) ;
+
+            // Disable GPS RX interrupt
+            IE2 &= ~UCA0RXIE;
+            radio.send_data( rawPacket, rawPacketSize, 20 ) ;
+            // Enable GPS RX interrupt
+            IE2 |= UCA0RXIE;
+
+            // TX has ended, turn off led
+            M10::digitalWrite( M10::LED, M10::LOW ) ;
+
+            // Turn transmitter off
+            M10::synthPower( false ) ;
+
+            // Empty gps frame buffer
+            bufferDumpFromFront(com_GetRxBuffer(), stdFLEN) ;
+        }
+#endif
 
         // Start sleeping
         // Enter LPM3, interrupts enabled
@@ -164,17 +249,18 @@ int main()
 #pragma vector=USCIAB0RX_VECTOR
 __interrupt void USCI0RX_ISR(void)
 {
+  uint8_t charReceive = UCA0RXBUF;
 
-  char c = UCA0RXBUF ;
-  // If we received a full GPS message
-  if ( gps.encode( c ) )
+  if ( bufferAddToEnd(&uartRxBuffer, charReceive) == 0 )
   {
-      // Reset parsing state (value stays unchanged)
-      gps.clear() ;
-
-      // Clear LPM3 bits from 0(SR)
-      __bic_SR_register_on_exit(LPM3_bits);
+      // no space in buffer
+      // count overflow
+      uartRxOverflow++;
   }
+
+  // Clear LPM3 bits from 0(SR)
+  __bic_SR_register_on_exit(LPM3_bits);
+
 }
 
 // Flag to handle power off sequence

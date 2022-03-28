@@ -6,9 +6,10 @@
  */
 
 #include <stdint.h>
+#include "buffer.h"
+#include "M10Data.h"
 
-#ifndef GTOPGPS_H_
-#define GTOPGPS_H_
+#pragma once
 
 
 #define stdFLEN        0x3E  // 63 bytes
@@ -24,39 +25,20 @@
 
 
 
-uint32_t get_4bytes(uint8_t * packet, unsigned int pos) ;
+uint32_t get_4bytes(cBuffer * packet, unsigned int pos) ;
 
-uint32_t get_3bytes(uint8_t * packet, unsigned int pos) ;
+uint32_t get_3bytes(cBuffer * packet, unsigned int pos) ;
 
-short get_2bytes(uint8_t * packet, unsigned int pos) ;
-
-struct Position {
-    // Degrees multiplied by 1e6
-    int32_t Lat;
-    // Degrees multiplied by 1e6
-    int32_t Lon;
-    int32_t Alt;
-};
-
-struct Speed {
-    int vE;
-    int vN;
-    int vU;
-    int Cap;
-};
-
-struct Datation {
-    uint32_t Date;
-    // Decimal 100226 stands for 10h02m26s
-    uint32_t Time;
-};
+short get_2bytes(cBuffer * packet, unsigned int pos) ;
 
 class GTopGPS
 {
 public :
     GTopGPS() ;
 
-    bool encode( uint8_t character ) ;
+    void setBuffer( cBuffer * buffer ) ;
+
+    bool decode() ;
 
     static bool checkM10(uint8_t *msg, int len) ;
 
@@ -79,7 +61,7 @@ public :
 private :
 
     unsigned int index_ ;
-    uint8_t packet_[stdFLEN] ;
+    cBuffer * packet_ = nullptr ;
 
     uint8_t header_[3] ;
     unsigned int headerIndex_ ;
@@ -87,4 +69,3 @@ private :
     bool headerFound_ ;
 };
 
-#endif /* GTOPGPS_H_ */

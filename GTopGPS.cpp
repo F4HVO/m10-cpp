@@ -8,28 +8,43 @@
 #include "GTopGPS.h"
 #include <math.h>
 
-uint32_t get_4bytes(uint8_t * packet, unsigned int pos) {
-  int i;
-  uint32_t val = 0 ;
-  for (i = 0; i < 4; i++) {
-    val |= uint32_t(packet[pos + i]) << uint32_t(8 * (3 - i));
-  }
-  return val;
+uint32_t get_4bytes(cBuffer * packet, unsigned int pos) {
+    uint8_t words[4] ;
+    for ( uint8_t i = 0 ; i < 4 ; ++i )
+    {
+        words[i] = bufferGetAtIndex( packet, pos + i ) ;
+    }
+    int i;
+    uint32_t val = 0 ;
+    for (i = 0; i < 4; i++) {
+        val |= uint32_t(words[i]) << uint32_t(8 * (3 - i));
+    }
+    return val;
 }
 
-uint32_t get_3bytes(uint8_t * packet, unsigned int pos) {
-  int i;
-  uint32_t val = 0 ;
-  for (i = 0; i < 3; i++) {
-    val |= uint32_t(packet[pos + i]) << uint32_t(8 * (2 - i));
-  }
-  return val;
+uint32_t get_3bytes(cBuffer * packet, unsigned int pos) {
+    uint8_t words[3] ;
+    for ( uint8_t i = 0 ; i < 3 ; ++i )
+    {
+        words[i] = bufferGetAtIndex( packet, pos + i ) ;
+    }
+
+    int i;
+    uint32_t val = 0 ;
+    for (i = 0; i < 3; i++) {
+        val |= uint32_t(words[i]) << uint32_t(8 * (2 - i));
+    }
+    return val;
 }
 
-short get_2bytes(uint8_t * packet,unsigned int pos) {
-  return  packet[pos] << 8 | packet[pos + 1];
+short get_2bytes(cBuffer * packet,unsigned int pos) {
+    uint8_t words[2] ;
+    for ( uint8_t i = 0 ; i < 2 ; ++i )
+    {
+        words[i] = bufferGetAtIndex( packet, pos + i ) ;
+    }
+    return  words[0] << 8 | words[1] ;
 }
-
 
 
 GTopGPS::GTopGPS( )
@@ -40,35 +55,37 @@ GTopGPS::GTopGPS( )
 }
 
 
-bool GTopGPS::encode( uint8_t character ) {
-    if ( ! headerFound_ )
+void GTopGPS::setBuffer( cBuffer * buffer )
+{
+    packet_ = buffer ;
+}
+
+bool GTopGPS::decode() {
+    if ( packet_->datalength < stdFLEN )
     {
-        header_[headerIndex_%3] = character ;
-        ++headerIndex_ ;
-        if ( ( header_[0] == header_[1]) && ( header_[1] == header_[2]) &&  ( header_[2] == 170 ) )
-        {
-            packet_[0] = 170 ;
-            packet_[1] = 170 ;
-            packet_[2] = 170 ;
-            index_ = 3 ;
-            headerFound_ = true ;
-        }
+        // Not enough data in buffer
         return false ;
     }
 
-
-    packet_[index_] = character ;
-    ++index_;
-    if ( index_ == stdFLEN )
+    // Look for header while there is enough data in buffer
+    while ( packet_->datalength >= stdFLEN )
     {
-        index_ = 0 ;
-        headerFound_ = false ;
-        headerIndex_ = 0 ;
-        header_[0] = header_[1] = header_[2] = 0x0 ;
+        // Check first three words
+        if ( bufferGetAtIndex( packet_, 0 ) != 170
+         || bufferGetAtIndex( packet_, 1 ) != 170
+         || bufferGetAtIndex( packet_, 2 ) != 170 )
+        {
+            // Dump first character
+            bufferDumpFromFront( packet_, 1 ) ;
 
+            // Restart loop if possible
+            continue ;
+        }
+        // Header has been found, we assume the rest of the packet is correct
         // TODO compute CRC
         return true ;
     }
+
     return false ;
 }
 

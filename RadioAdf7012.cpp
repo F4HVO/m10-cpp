@@ -263,13 +263,22 @@ void RadioAdf7012::setup()
 
     adf_reset_config();
 
+
+    // Center frequency at 438.510MHz  => 434.650 MHz (8/4) * ( 217 + 1331.0 / 4096.0 )
+    // Formula : f_pfd = f_crystal / r_divider
+    // f_tx = f_pfd * ( integer_n + fractional_n / 4096 )
+    adf_config.r0.output_divider = ADF_OUTPUT_DIVIDER_BY_2 ;
+    adf_config.r0.r_divider = 4 ;
+    adf_config.r1.integer_n = 217 ;
+    adf_config.r1.fractional_n = 1331 ;
+    /*
     // Center frequency at 432.500MHz
     // Formula : f_pfd = f_crystal / r_divider
     // f_tx = f_pfd * ( integer_n + fractional_n / 4096 )
     adf_config.r0.output_divider = ADF_OUTPUT_DIVIDER_BY_2 ;
     adf_config.r0.r_divider = 4 ;
     adf_config.r1.integer_n = 216 ;
-    adf_config.r1.fractional_n = 1024 ;
+    adf_config.r1.fractional_n = 1024 ;*/
 
     adf_config.r3.pll_enable = 1;
     // Between 0 and 3
@@ -312,7 +321,7 @@ void RadioAdf7012::ptt_off()
     digitalWrite(M10::ADFTxData, M10::LOW);
 }
 
-volatile bool timerTriggered ;
+volatile bool timerTriggered = false;
 
 // Active wait for ultimate timing precision
 void waitAndSendBit( uint8_t bit )
@@ -324,9 +333,8 @@ void waitAndSendBit( uint8_t bit )
     P4OUT |= bit ;
     P4OUT &= bit ;
 
-
     // Reset flag
-    timerTriggered = false ;
+    timerTriggered = false;
 }
 
 void RadioAdf7012::send_data( uint8_t data[], uint32_t size, int headerSize )
@@ -334,7 +342,7 @@ void RadioAdf7012::send_data( uint8_t data[], uint32_t size, int headerSize )
     // Turn on pa in tx chip
     ptt_on() ;
 
-    int i = 0 ;
+    unsigned int i = 0 ;
     int j = 7 ;
 
     uint8_t bitToSend ;

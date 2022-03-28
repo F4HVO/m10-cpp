@@ -71,13 +71,15 @@ namespace M10
         // SMCLK
         UCA0CTL1 |= UCSSEL_2 ;
 
-        // GPS serial baudrate = 38400
-        UCA0BR0=0xD0 ;
-        UCA0BR1=0x00 ;
-        UCA0MCTL=0x06 ;
+        // GPS serial baudrate = 38400 ==> (8 Mhz) 8000000 / 208 (0xD0) = 38400
+        UCA0BR0 = 0xD0;                           // 38400 from 8Mhz
+        UCA0BR1 = 0x00;
+
+        //UCA0MCTL=0x06 ;
+        UCA0MCTL = UCBRS_2;
 
         // Initialize USCI state machine
-        UCA0CTL0 = 0;
+        // UCA0CTL0 = 0;
         UCA0CTL1 &= ~UCSWRST;
         // Enable USCI_A0 RX interrupt
         IE2 |= UCA0RXIE;
