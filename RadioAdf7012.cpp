@@ -294,7 +294,7 @@ void RadioAdf7012::ptt_on()
 
     // Lock should happen during wait time, then turn on PA
     adf_config.r3.pa_enable = 1;
-    adf_config.r2.power_amplifier_level = 50 ; //63 is max power
+    adf_config.r2.power_amplifier_level = 63 ; //63 is max power
 
     adf_write_config();
     M10::delay(50);

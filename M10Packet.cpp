@@ -121,6 +121,7 @@ M10Packet::preparePacket( const Position * position,
 #ifdef M10PLUS
     outputData[1] = 0xAF ;
     outputData[2] = 0x02 ;
+
     writeMsb( position->Lat, &outputData[0x4] ) ;
     writeMsb( position->Lon, &outputData[0x8] ) ;
     writeMsb3( position->Alt, &outputData[0xC] ) ;
@@ -134,6 +135,7 @@ M10Packet::preparePacket( const Position * position,
 #else
     outputData[1] = 0x9F ;
     outputData[2] = 0x20 ;
+
     uint64_t lat = position->Lat ;
     lat *= 0xB60b60 ;
     lat /= 1000000 ;
