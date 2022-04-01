@@ -73,7 +73,6 @@ int main()
     int ConfigGPS = 0;
     int GpsHeure = 0;
     int result = 0;
-    int sendPacket = 0;
     GpsInfoType *ptrGPpsInfos = TSIP_Init();
 #else
     gps.setBuffer( com_GetRxBuffer() ) ;
@@ -145,9 +144,6 @@ int main()
         }
 
         if ( result == 4 ) {
-            sendPacket++;
-            sendPacket = sendPacket % 2;
-
             // GPS en mode 3D
             M10::digitalWrite( M10::LED, M10::LOW );
 
@@ -165,35 +161,33 @@ int main()
             speed.vN = ptrGPpsInfos->vN;
             speed.vU = ptrGPpsInfos->vU;
 
-            if (sendPacket == 0 ) {
-                // Turn transmitter on
-                M10::synthPower( true ) ;
+            // Turn transmitter on
+            M10::synthPower( true ) ;
 
-                // Configure ADF 7012
-                radio.setup() ;
+            // Configure ADF 7012
+            radio.setup() ;
 
-                // Turn on led when TXing
-                M10::digitalWrite( M10::LED, M10::HIGH ) ;
+            // Turn on led when TXing
+            M10::digitalWrite( M10::LED, M10::HIGH ) ;
 
-                // Prepare packet
-                M10Packet::preparePacket( &position, &speed, &date, numSVs, "F4AAA", 5, rawPacket, &rawPacketSize ) ;
+            // Prepare packet
+            M10Packet::preparePacket( &position, &speed, &date, numSVs, "F4AAA", 5, rawPacket, &rawPacketSize ) ;
 
-                // Disable GPS RX interrupt
-                IE2 &= ~UCA0RXIE;
-                radio.send_data( rawPacket, rawPacketSize, 20 ) ;
-                // Enable GPS RX interrupt
-                IE2 |= UCA0RXIE;
+            // Disable GPS RX interrupt
+            IE2 &= ~UCA0RXIE;
+            radio.send_data( rawPacket, rawPacketSize, 20 ) ;
+            // Enable GPS RX interrupt
+            IE2 |= UCA0RXIE;
 
-                // TX has ended, turn off led
-                M10::digitalWrite( M10::LED, M10::LOW ) ;
+            // TX has ended, turn off led
+            M10::digitalWrite( M10::LED, M10::LOW ) ;
 
-                // Turn transmitter off
-                M10::synthPower( false ) ;
+            // Turn transmitter off
+            M10::synthPower( false ) ;
 
-                bufferFlush( com_GetRxBuffer() );
+            bufferFlush( com_GetRxBuffer() );
 
-                // Go to sleep, we will wake up when we receive a full GPS message
-            }
+            // Go to sleep, we will wake up when we receive a full GPS message
         }
 #else
         if ( gps.decode() )
